@@ -2,71 +2,229 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Carbon\Carbon;
 
 class Anos extends Model
 {
-    /**
-     * O nome da tabela associada ao model.
-     *
-     * @var string
-     */
-    protected $table = 'anos';
+    use HasFactory;
 
     /**
-     * A chave primária da tabela.
+     * The attributes that are mass assignable.
      *
-     * @var string
-     */
-    protected $primaryKey = 'id_ano';
-
-    /**
-     * Indica se o ID é auto-incrementável.
-     * Por padrão, Laravel espera um ID auto-incrementável. Como 'idano' é a própria chave e não se auto-incrementa,
-     * devemos definir esta propriedade como false.
-     *
-     * @var bool
-     */
-    public $incrementing = false;
-
-    /**
-     * O tipo da chave primária.
-     * Laravel espera 'int' ou 'bigint' por padrão. Como 'idano' é um SMALLINT, é bom especificar.
-     *
-     * @var string
-     */
-    protected $keyType = 'integer'; // Ou 'smallint', mas 'integer' geralmente funciona bem para SMALLINT.
-
-    /**
-     * Indica se o model deve ser timestamped.
-     * Por padrão, Laravel espera colunas 'created_at' e 'updated_at'. Como não as temos, definimos como false.
-     *
-     * @var bool
-     */
-    public $timestamps = false;
-
-    /**
-     * Os atributos que são preenchíveis em massa.
-     * Se você pretende criar registros como `Ano::create(['idano' => 2025])`, adicione 'idano' aqui.
-     * Caso contrário, remova ou deixe vazio se só for buscar/atualizar.
-     *
-     * @var array
+     * @var array<int, string>
      */
     protected $fillable = [
-        'id_ano',
+        'ano',
+        'descricao',
+        'ativo',
+        'data_inicio',
+        'data_fim',
     ];
 
-    // Se você tiver outras colunas no futuro, adicione-as ao $fillable se forem preenchíveis em massa,
-    // ou ao $guarded se não quiser que sejam preenchíveis em massa.
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'ano' => 'integer',
+        'ativo' => 'boolean',
+        'data_inicio' => 'date',
+        'data_fim' => 'date',
+    ];
 
     /**
-     * Exemplo de método de relacionamento (se aplicável).
-     * Por exemplo, se um ano tem muitos orçamentos.
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
      */
-    /*
-    public function orcamentos()
+    protected $hidden = [];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
     {
-        return $this->hasMany(Orcamento::class, 'ano_idano_fk'); // Ajuste 'ano_idano_fk' para a sua chave estrangeira real.
+        return [
+            'ano' => 'integer',
+            'ativo' => 'boolean',
+            'data_inicio' => 'date',
+            'data_fim' => 'date',
+        ];
     }
-    */
+
+    /**
+     * Scope para buscar apenas anos ativos
+     */
+    public function scopeAtivo(Builder $query): Builder
+    {
+        return $query->where('ativo', true);
+    }
+
+    /**
+     * Scope para buscar apenas anos inativos
+     */
+    public function scopeInativo(Builder $query): Builder
+    {
+        return $query->where('ativo', false);
+    }
+
+    /**
+     * Scope para buscar por ano específico
+     */
+    public function scopeByAno(Builder $query, int $ano): Builder
+    {
+        return $query->where('ano', $ano);
+    }
+
+    /**
+     * Scope para buscar anos em um período
+     */
+    public function scopeEntrePeriodo(Builder $query, Carbon $dataInicio, Carbon $dataFim): Builder
+    {
+        return $query->where(function ($q) use ($dataInicio, $dataFim) {
+            $q->whereBetween('data_inicio', [$dataInicio, $dataFim])
+              ->orWhereBetween('data_fim', [$dataInicio, $dataFim])
+              ->orWhere(function ($q2) use ($dataInicio, $dataFim) {
+                  $q2->where('data_inicio', '<=', $dataInicio)
+                     ->where('data_fim', '>=', $dataFim);
+              });
+        });
+    }
+
+    /**
+     * Scope para buscar o ano letivo atual
+     */
+    public function scopeAtual(Builder $query): Builder
+    {
+        $hoje = Carbon::now();
+        return $query->where('data_inicio', '<=', $hoje)
+                    ->where('data_fim', '>=', $hoje)
+                    ->where('ativo', true);
+    }
+
+    /**
+     * Accessor para formatar o período completo
+     */
+    public function getPeriodoCompletoAttribute(): string
+    {
+        return $this->data_inicio->format('d/m/Y') . ' - ' . $this->data_fim->format('d/m/Y');
+    }
+
+    /**
+     * Accessor para verificar se é o ano atual
+     */
+    public function getEhAnoAtualAttribute(): bool
+    {
+        $hoje = Carbon::now();
+        return $this->ativo && 
+               $this->data_inicio <= $hoje && 
+               $this->data_fim >= $hoje;
+    }
+
+    /**
+     * Accessor para calcular duração em dias
+     */
+    public function getDuracaoEmDiasAttribute(): int
+    {
+        return $this->data_inicio->diffInDays($this->data_fim) + 1;
+    }
+
+    /**
+     * Accessor para status formatado
+     */
+    public function getStatusFormatadoAttribute(): string
+    {
+        return $this->ativo ? 'Ativo' : 'Inativo';
+    }
+
+    /**
+     * Boot method para eventos do model
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Evento antes de criar
+        static::creating(function ($anos) {
+            // Validação personalizada: data_fim deve ser maior que data_inicio
+            if ($anos->data_fim <= $anos->data_inicio) {
+                throw new \InvalidArgumentException('A data de fim deve ser posterior à data de início.');
+            }
+        });
+
+        // Evento antes de atualizar
+        static::updating(function ($anos) {
+            // Validação personalizada: data_fim deve ser maior que data_inicio
+            if ($anos->data_fim <= $anos->data_inicio) {
+                throw new \InvalidArgumentException('A data de fim deve ser posterior à data de início.');
+            }
+        });
+    }
+
+    /**
+     * Relacionamentos (exemplos que podem ser úteis)
+     */
+    
+    // Exemplo: Se você tiver uma tabela de turmas
+    // public function turmas()
+    // {
+    //     return $this->hasMany(Turma::class, 'ano_id');
+    // }
+
+    // Exemplo: Se você tiver uma tabela de matrículas
+    // public function matriculas()
+    // {
+    //     return $this->hasMany(Matricula::class, 'ano_id');
+    // }
+
+    // Exemplo: Se você tiver uma tabela de períodos/semestres
+    // public function periodos()
+    // {
+    //     return $this->hasMany(Periodo::class, 'ano_id');
+    // }
+
+    /**
+     * Métodos utilitários estáticos
+     */
+
+    /**
+     * Buscar o ano letivo ativo atual
+     */
+    public static function anoAtual(): ?self
+    {
+        return static::atual()->first();
+    }
+
+    /**
+     * Verificar se existe ano letivo ativo
+     */
+    public static function temAnoAtivo(): bool
+    {
+        return static::ativo()->exists();
+    }
+
+    /**
+     * Buscar anos disponíveis para seleção
+     */
+    public static function anosDisponiveis(): array
+    {
+        return static::ativo()
+                    ->orderBy('ano', 'desc')
+                    ->pluck('ano', 'id')
+                    ->toArray();
+    }
+
+    /**
+     * String representation of the model
+     */
+    public function __toString(): string
+    {
+        return "Ano Letivo {$this->ano}" . ($this->ativo ? ' (Ativo)' : ' (Inativo)');
+    }
 }
