@@ -30,9 +30,9 @@ class AnosResource extends Resource
 
     // Personalização da navegação
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
-    protected static ?string $navigationLabel = 'Anos Letivos';
-    protected static ?string $modelLabel = 'Ano Letivo';
-    protected static ?string $pluralModelLabel = 'Anos Letivos';
+    protected static ?string $navigationLabel = 'Anos';
+    protected static ?string $modelLabel = 'Ano';
+    protected static ?string $pluralModelLabel = 'Anos';
     protected static ?string $navigationGroup = 'Configurações de Sistema';
     protected static ?int $navigationSort = 1;
 
@@ -43,8 +43,8 @@ class AnosResource extends Resource
     {
         return $form
             ->schema([
-                Section::make('Informações do Ano Letivo')
-                    ->description('Configure as informações básicas do ano letivo')
+                Section::make('Informações do Ano')
+                    ->description('Configure as informações básicas do ano')
                     ->schema([
                         Grid::make(2)
                             ->schema([
