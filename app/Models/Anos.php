@@ -4,14 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Ano extends Model
+class Anos extends Model
 {
     /**
      * O nome da tabela associada ao model.
      *
      * @var string
      */
-    protected $table = 'ano';
+    protected $table = 'anos';
 
     /**
      * A chave primária da tabela.

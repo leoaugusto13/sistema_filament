@@ -12,9 +12,37 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('anos', function (Blueprint $table) {
-            $table->smallInteger('id_ano')->primary()->comment('Ano de exercicio');
-            // Se você realmente precisar de timestamps na sua tabela de anos, o que é incomum, adicione:
+            $table->id();
+            
+            // Campo principal do ano letivo
+            $table->year('ano')
+                ->unique()
+                ->comment('Ano letivo (ex: 2024)');
+            
+            // Descrição opcional
+            $table->text('descricao')
+                ->nullable()
+                ->comment('Descrição opcional do ano letivo');
+            
+            // Status do ano letivo
+            $table->boolean('ativo')
+                ->default(true)
+                ->comment('Indica se o ano letivo está ativo');
+            
+            // Período letivo
+            $table->date('data_inicio')
+                ->comment('Data de início do ano letivo');
+            
+            $table->date('data_fim')
+                ->comment('Data de fim do ano letivo');
+            
+            // Timestamps
             $table->timestamps();
+            
+            // Índices para melhor performance
+            $table->index('ativo');
+            $table->index('ano');
+            $table->index(['data_inicio', 'data_fim']);
         });
     }
 
