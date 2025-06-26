@@ -33,7 +33,7 @@ class AnosResource extends Resource
     protected static ?string $navigationLabel = 'Anos Letivos';
     protected static ?string $modelLabel = 'Ano Letivo';
     protected static ?string $pluralModelLabel = 'Anos Letivos';
-    protected static ?string $navigationGroup = 'Configurações Acadêmicas';
+    protected static ?string $navigationGroup = 'Configurações de Sistema';
     protected static ?int $navigationSort = 1;
 
     // Personalização do resource
